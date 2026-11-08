@@ -1,58 +1,355 @@
-
+// Задание 01
 class ClientRouter {
-  constructor(routes, root) {
+  constructor(routes) {
     this.routes = routes;
-    this.root = root;
-
-    window.addEventListener("popstate", () => {
-      this.render();
-    });
-
-    document.addEventListener("click", (event) => {
-      const link = event.target.closest("a");
-
-      if (!link) return;
-
-      if (link.origin !== window.location.origin) return;
-
-    
-      if (link.target && link.target !== "_self") return;
-
-      event.preventDefault();
-
+    this.root = document.getElementById('app');
+    document.addEventListener('click', e => {
+      const link = e.target.closest('a');
+      if (!link || link.origin !== location.origin) return;
+      e.preventDefault();
       this.navigate(link.pathname);
     });
-
+    window.addEventListener('popstate', () => this.render());
     this.render();
   }
-
   navigate(path) {
-    if (!this.routes[path]) {
-      console.warn(`Маршрут ${path} не найден`);
-      return;
-    }
-
-    history.pushState({}, "", path);
+    history.pushState({}, '', path);
     this.render();
   }
-
   render() {
-    const path = window.location.pathname;
-    const page = this.routes[path];
-
-    this.root.innerHTML = page
-      ? page()
-      : "<h1>404: Страница не найдена</h1>";
+    this.root.innerHTML = this.routes[location.pathname]?.() || '404';
   }
 }
 
-const routes = {
-  "/": () => "<h1>Главная</h1>",
-  "/about": () => "<h1>О нас</h1>",
-  "/contacts": () => "<h1>Контакты</h1>",
+// Задание 02
+function createVNode(type, props, ...children) {
+  const normalizedChildren = children.length === 1 ? children[0] : children;
+  return {
+    type,
+    props: { ...props, children: normalizedChildren },
+    key: props?.key ?? null
+  };
+}
+
+// Задание 03
+function shallowEqual(objA, objB) {
+  if (Object.is(objA, objB)) return true;
+  if (!objA || !objB || typeof objA !== 'object' || typeof objB !== 'object') return false;
+  const keysA = Object.keys(objA);
+  const keysB = Object.keys(objB);
+  if (keysA.length !== keysB.length) return false;
+  return keysA.every(key => Object.hasOwn(objB, key) && Object.is(objA[key], objB[key]));
+}
+
+// Задание 04
+function Parent() {
+  let count = 0;
+  const Child = (count, onIncrement) => ({
+    count,
+    increment: onIncrement
+  });
+  const onIncrement = () => count++;
+  return {
+    getCount: () => count,
+    child: () => Child(count, onIncrement)
+  };
+}
+
+// Задание 05
+function renderToHTML(vNode) {
+  if (vNode == null || typeof vNode === 'boolean') return '';
+  if (typeof vNode === 'string' || typeof vNode === 'number') return String(vNode);
+  const { type, props = {} } = vNode;
+  const { children, key, ...attrs } = props;
+  const attributes = Object.entries(attrs)
+    .filter(([name, value]) => value != null && typeof value !== 'boolean' && !name.startsWith('on'))
+    .map(([name, value]) => `${name === 'className' ? 'class' : name}="${String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`)
+    .join(' ');
+  const booleanAttrs = Object.entries(attrs)
+    .filter(([name, value]) => typeof value === 'boolean' && value && !name.startsWith('on'))
+    .map(([name]) => name === 'className' ? 'class' : name)
+    .join(' ');
+  const allAttrs = [attributes, booleanAttrs].filter(Boolean).join(' ');
+  const voidTags = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'];
+  if (voidTags.includes(type)) return `<${type}${allAttrs ? ' ' + allAttrs : ''}>`;
+  const content = Array.isArray(children) ? children.map(renderToHTML).join('') : renderToHTML(children);
+  return `<${type}${allAttrs ? ' ' + allAttrs : ''}>${content}</${type}>`;
+}
+
+// Задание 06
+const fs = require('fs');
+const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+const dependencies = packageJson.dependencies || {};
+const violations = Object.entries(dependencies).filter(([name, version]) => /^[~^]/.test(version));
+console.log(violations.map(([name, version]) => `${name}: ${version}`).join('\n') || 'Все версии зафиксированы');
+
+// Задание 07
+const major = Number(process.version.match(/^v(\d+)/)[1]);
+if (major < 18) {
+  console.error('Ошибка: требуется Node.js версии 18 или выше');
+  process.exit(1);
+}
+console.log('Версия Node.js подходит');
+
+// Задание 08
+{
+  "scripts": {
+    "prebuild": "npm run lint",
+    "build": "vite build",
+    "postbuild": "du -sh dist"
+  }
+}
+
+// Задание 09
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'node:path';
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src')
+    }
+  }
+});
+
+// Задание 10
+const http = require('http');
+const fs = require('fs');
+const WebSocket = require('ws');
+const server = http.createServer();
+const wss = new WebSocket.Server({ server });
+wss.on('connection', ws => {
+  const watcher = fs.watch('./test.js', () => {
+    ws.send(JSON.stringify({ type: 'reload' }));
+  });
+  ws.on('close', () => watcher.close());
+});
+server.listen(3000);
+
+// Задание 11
+function deepFreeze(object) {
+  if (object === null || typeof object !== 'object') return object;
+  Object.freeze(object);
+  Object.values(object).forEach(deepFreeze);
+  return object;
+}
+
+// Задание 12
+function createCounter(initialValue = 0, step = 1) {
+  let value = initialValue;
+  return {
+    inc: () => value += step,
+    dec: () => value -= step,
+    reset: () => value = initialValue,
+    get: () => value
+  };
+}
+
+// Задание 13
+function memoize(fn) {
+  const cache = new Map();
+  return (...args) => {
+    const key = JSON.stringify(args);
+    if (cache.has(key)) return cache.get(key);
+    const result = fn(...args);
+    cache.set(key, result);
+    return result;
+  };
+}
+
+// Задание 14
+function createValidator(ruleName, param) {
+  return value => {
+    let isValid = true;
+    let message = '';
+    switch (ruleName) {
+      case 'minLength':
+        isValid = value.length >= param;
+        message = isValid ? '' : `Минимум ${param} символов`;
+        break;
+      case 'maxLength':
+        isValid = value.length <= param;
+        message = isValid ? '' : `Максимум ${param} символов`;
+        break;
+      case 'required':
+        isValid = value.trim().length > 0;
+        message = isValid ? '' : 'Поле обязательно';
+        break;
+      case 'email':
+        isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+        message = isValid ? '' : 'Некорректный email';
+        break;
+      case 'pattern':
+        isValid = new RegExp(param).test(value);
+        message = isValid ? '' : 'Некорректный формат';
+        break;
+    }
+    return { isValid, message };
+  };
+}
+
+// Задание 15
+function getNestedValue(data, fallback) {
+  return data?.payload?.user?.settings?.theme ?? fallback;
+}
+
+// Задание 16
+const products = [];
+const formattedProducts = products.map(product => ({
+  ...product,
+  displayPrice: `${product.price.toLocaleString('ru-RU')} ₽`,
+  isOrderable: product.inStock && product.price > 0
+}));
+
+// Задание 17
+function filterCatalog(items, criteria) {
+  return items.filter(item =>
+    (criteria.category === undefined || item.category === criteria.category) &&
+    (criteria.maxPrice === undefined || item.price <= criteria.maxPrice) &&
+    (!criteria.onlyInStock || item.inStock)
+  );
+}
+
+// Задание 18
+function toggleTodoStatus(todos, todoId) {
+  return todos.map(todo =>
+    todo.id === todoId ? { ...todo, done: !todo.done } : todo
+  );
+}
+
+// Задание 19
+function groupProductsByCategory(items) {
+  return items.reduce((groups, item) => {
+    (groups[item.category] ??= []).push(item);
+    return groups;
+  }, {});
+}
+
+// Задание 20
+function uniqueBy(array, key) {
+  const seen = new Set();
+  return array.filter(item => {
+    if (seen.has(item[key])) return false;
+    seen.add(item[key]);
+    return true;
+  });
+}
+
+// Задание 21
+const newState = {
+  ...state,
+  user: {
+    ...state.user,
+    profile: {
+      ...state.user.profile,
+      notifications: {
+        ...state.user.profile.notifications,
+        email: !state.user.profile.notifications.email
+      }
+    }
+  }
 };
 
-const router = new ClientRouter(
-  routes,
-  document.getElementById("app")
-);
+// Задание 22
+function extractDomProps(allProps, customKeysArray) {
+  const customKeys = new Set(customKeysArray);
+  return Object.fromEntries(
+    Object.entries(allProps).filter(([key]) => !customKeys.has(key))
+  );
+}
+
+// Задание 23
+function deepMerge(target, source) {
+  const result = { ...target };
+  for (const key of Object.keys(source)) {
+    if (
+      source[key] &&
+      typeof source[key] === 'object' &&
+      !Array.isArray(source[key]) &&
+      target[key] &&
+      typeof target[key] === 'object' &&
+      !Array.isArray(target[key])
+    ) {
+      result[key] = deepMerge(target[key], source[key]);
+    } else {
+      result[key] = source[key];
+    }
+  }
+  return result;
+}
+
+// Задание 24
+function normalizeEntities(array) {
+  return {
+    byId: Object.fromEntries(array.map(item => [String(item.id), item])),
+    allIds: array.map(item => String(item.id))
+  };
+}
+
+function patchEntity(state, id, field, value) {
+  state.byId[id] = { ...state.byId[id], [field]: value };
+  return state;
+}
+
+// Задание 25
+function updateFormState(prevState, fieldName, fieldValue) {
+  return { ...prevState, [fieldName]: fieldValue };
+}
+
+// Задание 26
+function wait(milliseconds) {
+  return new Promise(resolve => setTimeout(resolve, milliseconds));
+}
+
+// Задание 27
+async function loadDashboard() {
+  const results = await Promise.allSettled([
+    fetch('/api/users').then(res => res.json()),
+    fetch('/api/products').then(res => res.json()),
+    fetch('/api/orders').then(res => res.json())
+  ]);
+  return {
+    successData: results.filter(r => r.status === 'fulfilled').map(r => r.value),
+    errors: results.filter(r => r.status === 'rejected').map(r => r.reason)
+  };
+}
+
+// Задание 28
+async function fetchWithTimeout(url, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Задание 29
+async function retry(asyncFn, retries = 3, delayMs = 500) {
+  let lastError;
+  for (let i = 0; i <= retries; i++) {
+    try {
+      return await asyncFn();
+    } catch (error) {
+      lastError = error;
+      if (i < retries) await wait(delayMs);
+    }
+  }
+  throw lastError;
+}
+
+// Задание 30
+class AsyncQueue {
+  constructor() {
+    this.queue = Promise.resolve();
+  }
+  enqueue(taskFn) {
+    const result = this.queue.then(() => taskFn());
+    this.queue = result.catch(() => {});
+    return result;
+  }
+}
+
