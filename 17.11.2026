@@ -1,0 +1,407 @@
+const task01 = (cardsContainer) => {
+  const cards = [...cardsContainer.querySelectorAll(".product-card")];
+  const heights = cards.map((card) => card.getBoundingClientRect().height);
+
+  cards.forEach((card, index) => {
+    if (heights[index] < 300) {
+      card.style.height = "300px";
+    }
+  });
+};
+
+const task02 = async (rawTransactions, filterCriteria, chunkSize = 1000) => {
+  const result = { totalRevenue: 0, totalTax: 0 };
+
+  for (let i = 0; i < rawTransactions.length; i += chunkSize) {
+    const chunk = rawTransactions.slice(i, i + chunkSize);
+
+    for (const transaction of chunk) {
+      if (
+        transaction.amount > filterCriteria.min &&
+        transaction.status === "completed"
+      ) {
+        const tax = transaction.amount * 0.2;
+        result.totalRevenue += transaction.amount;
+        result.totalTax += tax;
+      }
+    }
+
+    if (i + chunkSize < rawTransactions.length) {
+      if (globalThis.scheduler?.yield) {
+        await scheduler.yield();
+      } else {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+    }
+  }
+
+  return result;
+};
+
+const task03 = async (taskFactories, limit = 4) => {
+  if (!Array.isArray(taskFactories) || !Number.isInteger(limit) || limit < 1) {
+    throw new TypeError("Invalid taskFactories or limit");
+  }
+
+  const results = new Array(taskFactories.length);
+  let currentIndex = 0;
+
+  async function worker() {
+    while (currentIndex < taskFactories.length) {
+      const index = currentIndex++;
+
+      try {
+        results[index] = {
+          status: "fulfilled",
+          value: await taskFactories[index]()
+        };
+      } catch (error) {
+        results[index] = {
+          status: "rejected",
+          reason: error
+        };
+      }
+    }
+  }
+
+  await Promise.all(
+    Array.from(
+      { length: Math.min(limit, taskFactories.length) },
+      () => worker()
+    )
+  );
+
+  return results;
+};
+
+const task04 = (() => {
+  const nodeMetadataCache = new WeakMap();
+
+  function attachComponentMetadata(domNode, metadata) {
+    nodeMetadataCache.set(domNode, {
+      ...metadata,
+      attachedAt: Date.now()
+    });
+  }
+
+  function getComponentMetadata(domNode) {
+    return nodeMetadataCache.get(domNode);
+  }
+
+  return { attachComponentMetadata, getComponentMetadata };
+})();
+
+const task05 = (onStatusUpdate) => {
+  const controller = new AbortController();
+  let isAlive = true;
+
+  const sleep = (ms, signal) =>
+    new Promise((resolve, reject) => {
+      if (signal.aborted) {
+        reject(new DOMException("Aborted", "AbortError"));
+        return;
+      }
+
+      const timer = setTimeout(resolve, ms);
+
+      signal.addEventListener(
+        "abort",
+        () => {
+          clearTimeout(timer);
+          reject(new DOMException("Aborted", "AbortError"));
+        },
+        { once: true }
+      );
+    });
+
+  async function loop() {
+    while (isAlive && !controller.signal.aborted) {
+      try {
+        const response = await fetch("/api/health", {
+          signal: controller.signal
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (isAlive) {
+          onStatusUpdate(data);
+        }
+      } catch (error) {
+        if (error.name === "AbortError") break;
+        console.error("Poll error", error);
+      }
+
+      try {
+        await sleep(5000, controller.signal);
+      } catch {
+        break;
+      }
+    }
+  }
+
+  loop();
+
+  return () => {
+    isAlive = false;
+    controller.abort();
+  };
+};
+
+const task06 = (hugeDataPayload) => {
+  const iconId = hugeDataPayload.meta.iconId;
+
+  return function handleIconClick() {
+    console.log("Clicked icon:", iconId);
+  };
+};
+
+class CartComponent {
+  constructor(eventBus) {
+    this.eventBus = eventBus;
+    this.items = [];
+    this.boundHandler = this.handleItemAdded.bind(this);
+    this.eventBus.on("ITEM_ADDED", this.boundHandler);
+  }
+
+  handleItemAdded(item) {
+    this.items.push(item);
+  }
+
+  destroy() {
+    this.eventBus.off("ITEM_ADDED", this.boundHandler);
+  }
+}
+
+class CartComponentWithArrow {
+  constructor(eventBus) {
+    this.eventBus = eventBus;
+    this.items = [];
+    this.handleItemAdded = (item) => {
+      this.items.push(item);
+    };
+    this.eventBus.on("ITEM_ADDED", this.handleItemAdded);
+  }
+
+  destroy() {
+    this.eventBus.off("ITEM_ADDED", this.handleItemAdded);
+  }
+}
+
+const task08Functional = () => {
+  const [secondsLeft, setSecondsLeft] = React.useState(60);
+
+  React.useEffect(() => {
+    const id = setInterval(() => {
+      setSecondsLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(id);
+          return 0;
+        }
+
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(id);
+  }, []);
+
+  return secondsLeft;
+};
+
+const task08WithRef = () => {
+  const [secondsLeft, setSecondsLeft] = React.useState(60);
+  const secondsRef = React.useRef(60);
+
+  React.useEffect(() => {
+    const id = setInterval(() => {
+      secondsRef.current -= 1;
+      setSecondsLeft(secondsRef.current);
+
+      if (secondsRef.current <= 0) {
+        clearInterval(id);
+      }
+    }, 1000);
+
+    return () => clearInterval(id);
+  }, []);
+
+  return secondsLeft;
+};
+
+const task09 = async (paymentData) => {
+  try {
+    const token = await generatePaymentToken(paymentData);
+    const result = await chargeCard(token);
+
+    return [null, result];
+  } catch (error) {
+    return [error, null];
+  }
+};
+
+const onCheckoutClick = async (data) => {
+  const [error, result] = await task09(data);
+
+  if (error) {
+    showErrorMessage(error.message);
+    return;
+  }
+
+  showSuccessModal(result);
+};
+
+let cachedUser = null;
+let userPromise = null;
+
+const task10 = async () => {
+  if (cachedUser) {
+    return cachedUser;
+  }
+
+  if (!userPromise) {
+    userPromise = fetch("/api/me")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error: ${response.status}`);
+        }
+
+        return response.json();
+      })
+      .then((user) => {
+        cachedUser = user;
+        return user;
+      })
+      .catch((error) => {
+        userPromise = null;
+        throw error;
+      });
+  }
+
+  return userPromise;
+};
+
+const task11 = async (url, maxRetries = 5) => {
+  let attempt = 0;
+
+  while (attempt <= maxRetries) {
+    try {
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      if (attempt === maxRetries) {
+        throw error;
+      }
+
+      const baseDelay = 1000 * 2 ** attempt;
+      const jitter = Math.random() * 1000;
+      const delay = baseDelay + jitter;
+
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      attempt++;
+    }
+  }
+};
+
+const task12Clone = (state) => {
+  return structuredClone(state);
+};
+
+const task12Reducer = (state, action) => {
+  switch (action.type) {
+    case "UPDATE_BALANCE":
+      return {
+        ...state,
+        balance: action.payload
+      };
+
+    case "UPDATE_PROFILE":
+      return {
+        ...state,
+        profile: {
+          ...state.profile,
+          ...action.payload
+        }
+      };
+
+    case "ADD_HISTORY":
+      return {
+        ...state,
+        history: [...state.history, action.payload]
+      };
+
+    default:
+      return state;
+  }
+};
+
+const task13Style = {
+  padding: "8px",
+  borderBottom: "1px solid #eee"
+};
+
+const task13Options = {
+  canSelect: true,
+  canEdit: false
+};
+
+const TableRow = React.memo(({ data, style, options, onDelete }) => {
+  return (
+    <div style={style}>
+      <span>{data.name}</span>
+      {options.canEdit && <button>Edit</button>}
+      <button onClick={() => onDelete(data.id)}>Delete</button>
+    </div>
+  );
+});
+
+const Table = ({ rows, onDelete }) => {
+  const handleDelete = React.useCallback(
+    (id) => onDelete(id),
+    [onDelete]
+  );
+
+  return (
+    <div>
+      {rows.map((row) => (
+        <TableRow
+          key={row.id}
+          data={row}
+          style={task13Style}
+          options={task13Options}
+          onDelete={handleDelete}
+        />
+      ))}
+    </div>
+  );
+};
+
+const task14 = (existingPosts, newPostsFromApi) => {
+  const seenIds = new Set(existingPosts.map((post) => post.id));
+  const uniqueNewPosts = [];
+
+  for (const post of newPostsFromApi) {
+    if (!seenIds.has(post.id)) {
+      seenIds.add(post.id);
+      uniqueNewPosts.push(post);
+    }
+  }
+
+  return [...existingPosts, ...uniqueNewPosts];
+};
+
+const task15 = (dbRow = {}) => {
+  const color = dbRow.color ?? "blue";
+  const text = dbRow.text ?? "Новинка";
+  const icon = dbRow.icon ?? "star";
+
+  return `<span class="badge ${color}">${icon} ${text}</span>`;
+};
