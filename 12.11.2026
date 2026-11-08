@@ -1,0 +1,320 @@
+// Задание 01
+function checkAuthAndNavigate(isAuthenticated, currentPath) {
+  if (!isAuthenticated && currentPath !== "/login") {
+    window.history.replaceState({}, "", "/login");
+    renderLoginPage();
+  }
+}
+
+// Задание 02
+function mountHeader() {
+  const header = document.getElementById("header");
+
+  if (!header) return () => {};
+
+  const handleResize = () => {
+    const isMobile = window.innerWidth < 768;
+    header.className = isMobile ? "header-mobile" : "header-desktop";
+  };
+
+  window.addEventListener("resize", handleResize);
+  handleResize();
+
+  return function unmount() {
+    window.removeEventListener("resize", handleResize);
+  };
+}
+
+// Задание 03
+function ProductCard({ product, router }) {
+  return `
+    <div class="card">
+      <h3>${product.title}</h3>
+      <a href="/cart" data-route="/cart">В корзину</a>
+    </div>
+  `;
+}
+
+document.addEventListener("click", (event) => {
+  const link = event.target.closest("a[data-route]");
+
+  if (!link) return;
+
+  event.preventDefault();
+  router.navigate(link.dataset.route);
+});
+
+// Задание 04
+const packageJson = {
+  dependencies: {
+    react: "^18.3.1",
+    "react-dom": "^18.3.1",
+    "date-fns": "^3.6.0"
+  },
+  devDependencies: {
+    vite: "^5.4.0"
+  }
+};
+
+// Задание 05
+npm ci
+
+// Задание 06
+// vite.config.js
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import packageJson from "./package.json";
+
+export default defineConfig({
+  plugins: [react()],
+  define: {
+    __APP_VERSION__: JSON.stringify(packageJson.version)
+  }
+});
+
+// Footer.jsx
+export function Footer() {
+  return `<footer>Версия: ${__APP_VERSION__}</footer>`;
+}
+
+// Задание 07
+function resetAttemptsForActiveUsers(usersList) {
+  return usersList
+    .filter((user) => user.isActive)
+    .map((user) => ({
+      ...user,
+      loginAttempts: 0
+    }));
+}
+
+// Задание 08
+const userProfile = {
+  id: 101,
+  name: "Сергей",
+  security: {
+    roles: ["admin", "editor"],
+    twoFactor: true
+  }
+};
+
+const userCopy = {
+  ...userProfile,
+  security: {
+    ...userProfile.security,
+    roles: [...userProfile.security.roles, "superadmin"]
+  }
+};
+
+// Задание 09
+function createPaginationButtons(pagesCount) {
+  const buttons = [];
+
+  for (let i = 1; i <= pagesCount; i++) {
+    buttons.push(() => {
+      console.log(`Переход на страницу: ${i}`);
+    });
+  }
+
+  return buttons;
+}
+
+function createPaginationButtonsWithClosure(pagesCount) {
+  const buttons = [];
+
+  for (var i = 1; i <= pagesCount; i++) {
+    buttons.push(
+      ((page) => () => {
+        console.log(`Переход на страницу: ${page}`);
+      })(i)
+    );
+  }
+
+  return buttons;
+}
+
+// Задание 10
+const analyticsTracker = {
+  prefix: "ANALYTICS_EVENT",
+  sendEvent(eventName) {
+    console.log(`[${this.prefix}]: ${eventName}`);
+  }
+};
+
+const checkoutButton = document.getElementById("checkout-btn");
+
+checkoutButton.addEventListener(
+  "click",
+  analyticsTracker.sendEvent.bind(analyticsTracker)
+);
+
+checkoutButton.addEventListener("click", (event) => {
+  analyticsTracker.sendEvent(event.type);
+});
+
+const sendAnalyticsEvent = analyticsTracker.sendEvent.bind(analyticsTracker);
+checkoutButton.addEventListener("click", sendAnalyticsEvent);
+
+// Задание 11
+function getTopExpensiveProducts(products) {
+  return [...products]
+    .sort((a, b) => b.price - a.price)
+    .slice(0, 3);
+}
+
+// Задание 12
+function mapIdsToTasks(ids) {
+  return ids.map((id) => ({
+    taskId: id,
+    isDone: false
+  }));
+}
+
+// Задание 13
+const exitCodes = [0, 5, 8, 12];
+
+const targetCode = exitCodes.find((code) => code === 0);
+
+if (targetCode !== undefined) {
+  console.log("Код успешно найден:", targetCode);
+} else {
+  console.log("Код 0 не найден в списке!");
+}
+
+// Задание 14
+const cartItems = [
+  { id: 1, title: "Мышь", price: 2000 },
+  { id: 2, title: "Коврик", price: 1000 }
+];
+
+const totalCost = cartItems.reduce(
+  (acc, item) => acc + item.price,
+  0
+);
+
+// Задание 15
+let formState = {
+  name: "Иван",
+  email: "ivan@test.com"
+};
+
+function onFieldChange(fieldName, value) {
+  formState = {
+    ...formState,
+    [fieldName]: value
+  };
+
+  return formState;
+}
+
+// Задание 16
+function renderUserStats(serverData) {
+  const { stats = { views: 0, likes: 0 } } = serverData ?? {};
+
+  return `Просмотры: ${stats.views}`;
+}
+
+// Задание 17
+function TextInput(props) {
+  const mergedProps = {
+    type: "text",
+    ...props,
+    className: `form-input ${props.className ?? ""}`.trim()
+  };
+
+  return mergedProps;
+}
+
+// Задание 18
+function loadCustomScript(src) {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = src;
+
+    script.onload = () => {
+      try {
+        const data = JSON.parse("НЕВАЛИДНЫЙ_JSON");
+        resolve(data);
+      } catch (error) {
+        reject(error);
+      }
+    };
+
+    script.onerror = () => {
+      reject(new Error(`Не удалось загрузить скрипт: ${src}`));
+    };
+
+    document.head.appendChild(script);
+  });
+}
+
+// Задание 19
+function createSearchService() {
+  let activeAbortController = null;
+
+  return async function search(query) {
+    if (activeAbortController) {
+      activeAbortController.abort();
+    }
+
+    const controller = new AbortController();
+    activeAbortController = controller;
+
+    try {
+      const response = await fetch(
+        `/api/search?q=${encodeURIComponent(query)}`,
+        { signal: controller.signal }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP Error: ${response.status}`);
+      }
+
+      const results = await response.json();
+
+      if (activeAbortController === controller) {
+        activeAbortController = null;
+        return results;
+      }
+
+      return null;
+    } catch (error) {
+      if (error.name === "AbortError") {
+        return null;
+      }
+
+      if (activeAbortController === controller) {
+        activeAbortController = null;
+      }
+
+      throw error;
+    }
+  };
+}
+
+// Задание 20
+async function loadFullProfilePage(userId) {
+  const results = await Promise.allSettled([
+    fetchUserData(userId),
+    fetchUserBalance(userId),
+    fetchPromoBanner()
+  ]);
+
+  const [userResult, balanceResult, promoResult] = results;
+
+  if (userResult.status === "rejected") {
+    throw userResult.reason;
+  }
+
+  if (balanceResult.status === "rejected") {
+    throw balanceResult.reason;
+  }
+
+  const user = userResult.value;
+  const balance = balanceResult.value;
+  const promo =
+    promoResult.status === "fulfilled"
+      ? promoResult.value
+      : null;
+
+  renderProfile({ user, balance, promo });
+}
