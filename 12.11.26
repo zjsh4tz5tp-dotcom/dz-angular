@@ -1,0 +1,414 @@
+01.
+function checkAuthAndNavigate(isAuthenticated, currentPath) {
+  if (!isAuthenticated && currentPath !== "/login") {
+    window.history.replaceState({}, "", "/login");
+    renderLoginPage();
+  }
+}
+
+02.
+function mountHeader() {
+  const header = document.getElementById("header");
+
+  function updateHeader() {
+    header.className = window.innerWidth < 768
+      ? "header-mobile"
+      : "header-desktop";
+  }
+
+  window.addEventListener("resize", updateHeader);
+  updateHeader();
+
+  return function unmountHeader() {
+    window.removeEventListener("resize", updateHeader);
+  };
+}
+
+03.
+function ProductCard({ product }) {
+  return `
+    <div class="card">
+      <h3>${product.title}</h3>
+      <a href="/cart" data-route="/cart">В корзину</a>
+    </div>
+  `;
+}
+
+function mountProductCards(router) {
+  function handleNavigation(event) {
+    const link = event.target.closest("a[data-route]");
+
+    if (!link) return;
+
+    event.preventDefault();
+    router.navigate(link.dataset.route);
+  }
+
+  document.addEventListener("click", handleNavigation);
+
+  return function unmountProductCards() {
+    document.removeEventListener("click", handleNavigation);
+  };
+}
+
+04.
+{
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "date-fns": "^3.6.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  }
+}
+
+05.
+git pull origin main
+npm ci
+npm run build
+
+06.
+import { defineConfig } from "vite";
+import packageJson from "./package.json";
+
+export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(packageJson.version)
+  }
+});
+
+export function Footer() {
+  return <footer>Версия: {__APP_VERSION__}</footer>;
+}
+
+07.
+function resetAttemptsForActiveUsers(usersList) {
+  return usersList
+    .filter(user => user.isActive)
+    .map(user => ({
+      ...user,
+      loginAttempts: 0
+    }));
+}
+
+08.
+const userProfile = {
+  id: 101,
+  name: "Сергей",
+  security: {
+    roles: ["admin", "editor"],
+    twoFactor: true
+  }
+};
+
+const userCopy = {
+  ...userProfile,
+  security: {
+    ...userProfile.security,
+    roles: [...userProfile.security.roles, "superadmin"]
+  }
+};
+
+09.
+function createPaginationButtons(pagesCount) {
+  const buttons = [];
+
+  for (let i = 1; i <= pagesCount; i++) {
+    buttons.push(() => {
+      console.log(`Переход на страницу: ${i}`);
+    });
+  }
+
+  return buttons;
+}
+
+function createPaginationButtonsWithVar(pagesCount) {
+  var buttons = [];
+
+  for (var i = 1; i <= pagesCount; i++) {
+    buttons.push((function (page) {
+      return function () {
+        console.log(`Переход на страницу: ${page}`);
+      };
+    })(i));
+  }
+
+  return buttons;
+}
+
+10.
+const analyticsTracker = {
+  prefix: "ANALYTICS_EVENT",
+
+  sendEvent(eventName) {
+    console.log(`[${this.prefix}]: ${eventName}`);
+  }
+};
+
+document
+  .getElementById("checkout-btn")
+  .addEventListener(
+    "click",
+    analyticsTracker.sendEvent.bind(analyticsTracker)
+  );
+
+document
+  .getElementById("checkout-btn")
+  .addEventListener("click", event => {
+    analyticsTracker.sendEvent(event.type);
+  });
+
+document
+  .getElementById("checkout-btn")
+  .addEventListener("click", function () {
+    analyticsTracker.sendEvent.call(analyticsTracker, "checkout");
+  });
+
+11.
+function getTopExpensiveProducts(products) {
+  return [...products]
+    .sort((a, b) => b.price - a.price)
+    .slice(0, 3);
+}
+
+12.
+function mapIdsToTasks(ids) {
+  return ids.map(id => ({
+    taskId: id,
+    isDone: false
+  }));
+}
+
+13.
+const exitCodes = [0, 5, 8, 12];
+
+const targetCode = exitCodes.find(code => code === 0);
+
+if (targetCode !== undefined) {
+  console.log("Код успешно найден:", targetCode);
+} else {
+  console.log("Код 0 не найден в списке!");
+}
+
+14.
+const cartItems = [
+  { id: 1, title: "Мышь", price: 2000 },
+  { id: 2, title: "Коврик", price: 1000 }
+];
+
+const totalCost = cartItems.reduce(
+  (acc, item) => acc + item.price,
+  0
+);
+
+15.
+let formState = {
+  name: "Иван",
+  email: "ivan@test.com"
+};
+
+function onFieldChange(fieldName, value) {
+  formState = {
+    ...formState,
+    [fieldName]: value
+  };
+}
+
+onFieldChange("email", "new-email@test.com");
+
+16.
+function renderUserStats(serverData) {
+  const { stats = {} } = serverData ?? {};
+  const { views = 0, likes = 0 } = stats ?? {};
+
+  return `Просмотры: ${views}, лайки: ${likes}`;
+}
+
+renderUserStats(null);
+
+17.
+function TextInput(props) {
+  const mergedProps = {
+    type: "text",
+    ...props,
+    className: ["form-input", props.className]
+      .filter(Boolean)
+      .join(" ")
+  };
+
+  return mergedProps;
+}
+
+const passwordConfig = TextInput({
+  type: "password",
+  id: "pass"
+});
+
+18.
+function loadCustomScript(src) {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = src;
+
+    script.onload = () => {
+      try {
+        const data = JSON.parse("НЕВАЛИДНЫЙ_JSON");
+        resolve(data);
+      } catch (error) {
+        reject(error);
+      }
+    };
+
+    script.onerror = () => {
+      reject(new Error(`Не удалось загрузить скрипт: ${src}`));
+    };
+
+    document.head.appendChild(script);
+  });
+}
+
+19.
+function createSearchService() {
+  let activeAbortController = null;
+
+  return async function search(query) {
+    if (activeAbortController) {
+      activeAbortController.abort();
+    }
+
+    const controller = new AbortController();
+    activeAbortController = controller;
+
+    try {
+      const response = await fetch(
+        `/api/search?q=${encodeURIComponent(query)}`,
+        { signal: controller.signal }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP Error: ${response.status}`);
+      }
+
+      const results = await response.json();
+
+      if (activeAbortController !== controller) {
+        return null;
+      }
+
+      return results;
+    } catch (error) {
+      if (error.name === "AbortError") {
+        return null;
+      }
+
+      throw error;
+    } finally {
+      if (activeAbortController === controller) {
+        activeAbortController = null;
+      }
+    }
+  };
+}
+
+import { useEffect, useState } from "react";
+
+function UserSearchDropdown() {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!query.trim()) {
+      setResults([]);
+      setIsLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+
+    async function executeSearch() {
+      setIsLoading(true);
+
+      try {
+        const response = await fetch(
+          `/api/users?search=${encodeURIComponent(query)}`,
+          { signal: controller.signal }
+        );
+
+        if (!response.ok) {
+          throw new Error("Search failed");
+        }
+
+        const data = await response.json();
+
+        if (!controller.signal.aborted) {
+          setResults(data);
+        }
+      } catch (error) {
+        if (error.name !== "AbortError") {
+          console.error(error);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    executeSearch();
+
+    return () => {
+      controller.abort();
+    };
+  }, [query]);
+
+  return (
+    <div className="search-container">
+      <input
+        type="text"
+        value={query}
+        onChange={event => setQuery(event.target.value)}
+        placeholder="Поиск пользователей..."
+      />
+
+      {isLoading && <span className="spinner">Загрузка...</span>}
+
+      <ul className="results-list">
+        {results.map(user => (
+          <li key={user.id}>{user.name}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+20.
+async function loadFullProfilePage(userId) {
+  const results = await Promise.allSettled([
+    fetchUserData(userId),
+    fetchUserBalance(userId),
+    fetchPromoBanner()
+  ]);
+
+  const [userResult, balanceResult, promoResult] = results;
+
+  if (
+    userResult.status === "rejected" ||
+    balanceResult.status === "rejected"
+  ) {
+    throw new Error("Не удалось загрузить критические данные профиля");
+  }
+
+  const user = userResult.value;
+  const balance = balanceResult.value;
+  const promo = promoResult.status === "fulfilled"
+    ? promoResult.value
+    : null;
+
+  renderProfile({
+    user,
+    balance,
+    promo
+  });
+}
