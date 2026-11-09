@@ -1,0 +1,290 @@
+не вовремя, потому что ждала зачет на 4 паре, но вы уже его закрыли к тому моменту (нам было сказано, что зачет будет на 4 паре)
+
+CREATE DATABASE production_shop;
+USE production_shop;
+
+станки
+CREATE TABLE machines (
+    machine_id INT AUTO_INCREMENT PRIMARY KEY,
+    machine_name VARCHAR(100) NOT NULL,
+    machine_type VARCHAR(50),
+    installation_date DATE,
+    status VARCHAR(30) DEFAULT 'Работает'
+);
+
+ смены
+CREATE TABLE shifts (
+    shift_id INT AUTO_INCREMENT PRIMARY KEY,
+    shift_name VARCHAR(50) NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL
+);
+
+ сменные задания
+CREATE TABLE shift_tasks (
+    task_id INT AUTO_INCREMENT PRIMARY KEY,
+    machine_id INT NOT NULL,
+    shift_id INT NOT NULL,
+    task_date DATE NOT NULL,
+    product_name VARCHAR(100) NOT NULL,
+    planned_quantity INT NOT NULL,
+    FOREIGN KEY (machine_id) REFERENCES machines(machine_id),
+    FOREIGN KEY (shift_id) REFERENCES shifts(shift_id)
+);
+
+выпускк деталей
+CREATE TABLE production (
+    production_id INT AUTO_INCREMENT PRIMARY KEY,
+    task_id INT NOT NULL,
+    produced_at DATETIME NOT NULL,
+    quantity INT NOT NULL,
+    good_quantity INT NOT NULL,
+    defective_quantity INT NOT NULL,
+    FOREIGN KEY (task_id) REFERENCES shift_tasks(task_id)
+);
+
+  брак
+CREATE TABLE defects (
+    defect_id INT AUTO_INCREMENT PRIMARY KEY,
+    production_id INT NOT NULL,
+    defect_type VARCHAR(100),
+    defect_quantity INT NOT NULL,
+    description TEXT,
+    FOREIGN KEY (production_id) REFERENCES production(production_id)
+);
+
+расход сырья
+CREATE TABLE material_consumption (
+    consumption_id INT AUTO_INCREMENT PRIMARY KEY,
+    task_id INT NOT NULL,
+    material_name VARCHAR(100) NOT NULL,
+    quantity DECIMAL(12,3) NOT NULL,
+    unit VARCHAR(20),
+    consumed_at DATETIME NOT NULL,
+    FOREIGN KEY (task_id) REFERENCES shift_tasks(task_id)
+);
+
+события оборудования 
+CREATE TABLE machine_events (
+    event_id INT AUTO_INCREMENT PRIMARY KEY,
+    machine_id INT NOT NULL,
+    event_type VARCHAR(30) NOT NULL,
+    start_time DATETIME NOT NULL,
+    end_time DATETIME,
+    description TEXT,
+    FOREIGN KEY (machine_id) REFERENCES machines(machine_id)
+);
+
+
+
+ 2. DWH 
+
+CREATE DATABASE production_dwh;
+USE production_dwh;
+
+-- Измерение оборудования
+CREATE TABLE dim_machine (
+    machine_key INT AUTO_INCREMENT PRIMARY KEY,
+    machine_id INT,
+    machine_name VARCHAR(100),
+    machine_type VARCHAR(50)
+);
+
+измерение времени
+CREATE TABLE dim_date (
+    date_key INT PRIMARY KEY,
+    full_date DATE,
+    day INT,
+    month INT,
+    year INT
+);
+
+измерение продукции
+CREATE TABLE dim_product (
+    product_key INT AUTO_INCREMENT PRIMARY KEY,
+    product_name VARCHAR(100)
+);
+
+факты производства и OEE
+CREATE TABLE fact_production (
+    fact_id INT AUTO_INCREMENT PRIMARY KEY,
+    machine_key INT,
+    date_key INT,
+    product_key INT,
+    planned_time DECIMAL(10,2),
+    operating_time DECIMAL(10,2),
+    total_quantity INT,
+    good_quantity INT,
+    defective_quantity INT,
+    FOREIGN KEY (machine_key) REFERENCES dim_machine(machine_key),
+    FOREIGN KEY (date_key) REFERENCES dim_date(date_key),
+    FOREIGN KEY (product_key) REFERENCES dim_product(product_key)
+);
+
+факты расхода сырья
+CREATE TABLE fact_material_consumption (
+    consumption_key INT AUTO_INCREMENT PRIMARY KEY,
+    machine_key INT,
+    date_key INT,
+    material_name VARCHAR(100),
+    quantity DECIMAL(12,3),
+    FOREIGN KEY (machine_key) REFERENCES dim_machine(machine_key),
+    FOREIGN KEY (date_key) REFERENCES dim_date(date_key)
+);
+
+
+
+ 3. РАСЧЕТ OEE
+
+
+SELECT
+    m.machine_name,
+
+    ROUND(
+        SUM(f.operating_time) /
+        NULLIF(SUM(f.planned_time), 0) * 100,
+        2
+    ) AS availability_percent,
+
+    ROUND(
+        SUM(f.good_quantity) /
+        NULLIF(SUM(f.total_quantity), 0) * 100,
+        2
+    ) AS quality_percent,
+
+    ROUND(
+        (SUM(f.operating_time) /
+        NULLIF(SUM(f.planned_time), 0)) *
+        (SUM(f.good_quantity) /
+        NULLIF(SUM(f.total_quantity), 0)) * 100,
+        2
+    ) AS OEE_percent
+
+FROM fact_production f
+JOIN dim_machine m
+    ON f.machine_key = m.machine_key
+GROUP BY m.machine_name;
+
+
+4. KB
+
+CREATE DATABASE production_kb;
+USE production_kb;
+
+данные датчиков станков
+CREATE TABLE sensor_data (
+    sensor_id INT AUTO_INCREMENT PRIMARY KEY,
+    machine_id INT NOT NULL,
+    sensor_type VARCHAR(50),
+    sensor_value DECIMAL(10,3),
+    measurement_time DATETIME NOT NULL
+);
+и стория неисправностей
+CREATE TABLE failures (
+    failure_id INT AUTO_INCREMENT PRIMARY KEY,
+    machine_id INT NOT NULL,
+    failure_type VARCHAR(100),
+    failure_date DATETIME NOT NULL,
+    repair_description TEXT,
+    downtime_hours DECIMAL(10,2)
+);
+
+арогнозы неисправностей
+CREATE TABLE maintenance_predictions (
+    prediction_id INT AUTO_INCREMENT PRIMARY KEY,
+    machine_id INT NOT NULL,
+    prediction_date DATETIME NOT NULL,
+    failure_probability DECIMAL(5,2),
+    predicted_failure VARCHAR(100),
+    recommendation TEXT
+);
+
+регламент обслуживания
+CREATE TABLE maintenance_rules (
+    rule_id INT AUTO_INCREMENT PRIMARY KEY,
+    machine_type VARCHAR(50),
+    condition_description TEXT,
+    recommended_action TEXT,
+    maintenance_interval_days INT
+);
+
+
+
+5.ПРЕДИКТИВНОЕ ОБСЛУЖИВАНИЕ
+
+
+SELECT
+    machine_id,
+    AVG(sensor_value) AS avg_temperature,
+    MAX(sensor_value) AS max_temperature
+FROM sensor_data
+WHERE sensor_type = 'Температура'
+  AND measurement_time >= NOW() - INTERVAL 24 HOUR
+GROUP BY machine_id
+HAVING MAX(sensor_value) > 80;
+
+
+ 6. ЗАПОЛНЕНИЕ ДАННЫМИ OLTP
+
+
+USE production_shop;
+
+добавление станков
+INSERT INTO machines
+(machine_name, machine_type, installation_date)
+VALUES
+('ЧПУ-01', 'Фрезерный', '2023-05-10'),
+('ЧПУ-02', 'Токарный', '2022-11-15');
+
+добавление смен
+INSERT INTO shifts
+(shift_name, start_time, end_time)
+VALUES
+('Дневная', '08:00:00', '16:00:00'),
+('Ночная', '16:00:00', '00:00:00');
+
+добавление сменных заданий
+INSERT INTO shift_tasks
+(machine_id, shift_id, task_date, product_name, planned_quantity)
+VALUES
+(1, 1, '2026-11-09', 'Деталь А', 500),
+(2, 2, '2026-11-09', 'Деталь Б', 300);
+
+добавление выпуска деталей
+INSERT INTO production
+(task_id, produced_at, quantity, good_quantity, defective_quantity)
+VALUES
+(1, '2026-11-09 12:00:00', 250, 240, 10),
+(2, '2026-11-09 23:00:00', 150, 145, 5);
+
+добавление брака
+INSERT INTO defects
+(production_id, defect_type, defect_quantity, description)
+VALUES
+(1, 'Геометрический дефект', 6, 'Отклонение размеров'),
+(1, 'Поверхностный дефект', 4, 'Царапины'),
+(2, 'Геометрический дефект', 5, 'Нарушение допусков');
+
+
+
+7. ЗАПОЛНЕНИЕ ДАННЫМИ KB
+
+
+USE production_kb;
+
+данные датчиков
+INSERT INTO sensor_data
+(machine_id, sensor_type, sensor_value, measurement_time)
+VALUES
+(1, 'Температура', 75.5, NOW()),
+(1, 'Вибрация', 4.2, NOW()),
+(2, 'Температура', 85.3, NOW());
+
+добавление прогноза неисправности
+INSERT INTO maintenance_predictions
+(machine_id, prediction_date, failure_probability,
+ predicted_failure, recommendation)
+VALUES
+(2, NOW(), 0.85, 'Перегрев подшипника',
+ 'Проверить подшипники и систему охлаждения');
+
